@@ -12,7 +12,7 @@ export function el(tag, attrs = {}, ...children) {
     if (key === 'className') { elem.className = val; }
     else if (key === 'html') { elem.innerHTML = val; }
     else if (key.startsWith('on')) { elem.addEventListener(key.slice(2).toLowerCase(), val); }
-    else { elem.setAttribute(key, val); }
+    else if (val != null && val !== false) { elem.setAttribute(key, val); }
   }
   for (const child of children) {
     if (typeof child === 'string') { elem.appendChild(document.createTextNode(child)); }
