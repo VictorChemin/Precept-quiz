@@ -335,6 +335,9 @@
         case MSG.JOIN_ACK:
           console.log('Join acknowledged, playerId:', data.playerId);
           break;
+        case MSG.ROOM_INFO:
+          waitingQuizTitle.textContent = (data.quizTitle || 'Quiz') + ' · ' + data.questionCount + ' questions';
+          break;
         case MSG.GAME_START:
           isGameOver = false;
           document.body.classList.add('game-active');

@@ -302,6 +302,12 @@
       playerList.appendChild(item);
       updatePlayerCount();
       updateStartButton();
+      if (quiz) {
+        host.sendTo(player.id, makeMsg(MSG.ROOM_INFO, {
+          quizTitle: quiz.title,
+          questionCount: quiz.questions.length
+        }));
+      }
     }
 
     function onPlayerLeft(playerId) {
