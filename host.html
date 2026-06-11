@@ -506,7 +506,7 @@
 
       const pickedAnswers = gameState.currentPickedAnswers;
       setHTML(answerDistribution, pickedAnswers.map(a => {
-        const count = gameState.answers.values().filter(v => v.answerId === a.id).length;
+        const count = [...gameState.answers.values()].filter(v => v.answerId === a.id).length;
         const totalResponses = Math.max(1, gameState.answers.size || host.getPlayers().length);
         const pct = Math.round((count / totalResponses) * 100);
         const isCorrect = correctIds.includes(a.id);
