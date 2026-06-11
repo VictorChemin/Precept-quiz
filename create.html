@@ -98,9 +98,12 @@
       header.appendChild(el('span', { className: 'question-number' }, `Question ${index + 1}`));
 
       const actions = el('div', { className: 'flex gap-1' });
-      const upBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Déplacer vers le haut', disabled: index === 0 ? 'true' : null }, '&#8593;');
-      const downBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Déplacer vers le bas', disabled: index === quiz.questions.length - 1 ? 'true' : null }, '&#8595;');
-      const delBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Supprimer', style: 'color:var(--color-error)' }, '&#10005;');
+      const upBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Déplacer vers le haut', disabled: index === 0 ? 'true' : null });
+      upBtn.innerHTML = '\u2191';
+      const downBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Déplacer vers le bas', disabled: index === quiz.questions.length - 1 ? 'true' : null });
+      downBtn.innerHTML = '\u2193';
+      const delBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Supprimer', style: 'color:var(--color-error)' });
+      delBtn.innerHTML = '\u2715';
       upBtn.addEventListener('click', () => moveQuestion(index, -1));
       downBtn.addEventListener('click', () => moveQuestion(index, 1));
       delBtn.addEventListener('click', () => deleteQuestion(index));
