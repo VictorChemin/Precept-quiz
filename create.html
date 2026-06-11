@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Créer un quiz — Precept</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="index.html" class="brand">Precept</a>
+    <ul class="nav-links">
+      <li><a href="create.html" style="color:var(--color-primary)">Créer</a></li>
+      <li><a href="host.html">Héberger</a></li>
+      <li><a href="join.html">Rejoindre</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>Créer un quiz</h1>
+      <p>Rédigez vos questions et réponses, puis téléchargez le fichier .quiz</p>
+    </header>
+
+    <div id="creator-app" class="creator-layout">
+      <div class="quiz-meta">
+        <div class="form-group">
+          <label for="quiz-title">Titre du quiz</label>
+          <input type="text" id="quiz-title" class="input" placeholder="Ex : Maths — Les fractions" maxlength="120">
+        </div>
+        <div class="form-group">
+          <label for="quiz-desc">Description <span style="font-weight:400;color:var(--color-text-light)">(optionnelle)</span></label>
+          <textarea id="quiz-desc" class="textarea" placeholder="Décrivez brièvement votre quiz..." rows="2" maxlength="300"></textarea>
+        </div>
+      </div>
+
+      <div id="questions-container">
+      </div>
+
+      <div id="empty-questions" class="empty-state">
+        <div class="icon">&#128196;</div>
+        <p>Aucune question pour l'instant</p>
+        <button id="add-first-question" class="btn btn-outline mt-2">Ajouter une question</button>
+      </div>
+
+      <div class="creator-actions">
+        <button id="add-question-btn" class="btn btn-outline">+ Ajouter une question</button>
+        <button id="download-btn" class="btn btn-primary" disabled>Télécharger le .quiz</button>
+        <button id="import-btn" class="btn btn-ghost">Importer un .quiz existant</button>
+        <input type="file" id="import-file" accept=".quiz,.json" style="display:none">
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    import { $, $$, el, generateId, show, hide, readFile, readFileAsDataURL, downloadFile } from './js/utils.js';
+    import { createEmptyQuiz, createEmptyQuestion, createEmptyAnswer, parseQuizFile, exportQuizFile } from './js/quiz-file.js';
+
+    let quiz = createEmptyQuiz();
+    let questionCount = 0;
+
+    const titleInput = $('#quiz-title');
+    const descInput = $('#quiz-desc');
+    const questionsContainer = $('#questions-container');
+    const emptyState = $('#empty-questions');
+    const addQuestionBtn = $('#add-question-btn');
+    const addFirstBtn = $('#add-first-question');
+    const downloadBtn = $('#download-btn');
+    const importBtn = $('#import-btn');
+    const importFile = $('#import-file');
+
+    function updateUI() {
+      const hasQuestions = quiz.questions.length > 0;
+      hide(emptyState);
+      if (!hasQuestions) { show(emptyState); }
+      downloadBtn.disabled = !hasQuestions || !titleInput.value.trim();
+    }
+
+    function syncMetaToQuiz() {
+      quiz.title = titleInput.value.trim();
+      quiz.description = descInput.value.trim();
+    }
+
+    titleInput.addEventListener('input', () => { syncMetaToQuiz(); updateUI(); });
+    descInput.addEventListener('input', () => syncMetaToQuiz());
+
+    function renderAllQuestions() {
+      questionsContainer.innerHTML = '';
+      quiz.questions.forEach((q, i) => questionsContainer.appendChild(buildQuestionCard(q, i)));
+      updateUI();
+    }
+
+    function buildQuestionCard(question, index) {
+      const card = el('div', { className: 'card question-card', 'data-qid': question.id });
+
+      const header = el('div', { className: 'question-header' });
+      header.appendChild(el('span', { className: 'question-number' }, `Question ${index + 1}`));
+
+      const actions = el('div', { className: 'flex gap-1' });
+      const upBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Déplacer vers le haut', disabled: index === 0 ? 'true' : null }, '&#8593;');
+      const downBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Déplacer vers le bas', disabled: index === quiz.questions.length - 1 ? 'true' : null }, '&#8595;');
+      const delBtn = el('button', { className: 'btn btn-ghost btn-sm', title: 'Supprimer', style: 'color:var(--color-error)' }, '&#10005;');
+      upBtn.addEventListener('click', () => moveQuestion(index, -1));
+      downBtn.addEventListener('click', () => moveQuestion(index, 1));
+      delBtn.addEventListener('click', () => deleteQuestion(index));
+      actions.appendChild(upBtn);
+      actions.appendChild(downBtn);
+      actions.appendChild(delBtn);
+      header.appendChild(actions);
+      card.appendChild(header);
+
+      const body = el('div', { className: 'question-body' });
+
+      const textGroup = el('div', { className: 'form-group' });
+      textGroup.appendChild(el('label', {}, 'Texte de la question'));
+      const textInput = el('textarea', { className: 'textarea' }, question.text);
+      textInput.placeholder = 'Écrivez votre question ici...';
+      textInput.rows = 2;
+      textInput.addEventListener('input', () => {
+        question.text = textInput.value;
+      });
+      textGroup.appendChild(textInput);
+      body.appendChild(textGroup);
+
+      const imageSection = el('div', { className: 'image-section' });
+      const imgLabel = el('label', {}, 'Image (optionnelle)');
+      imgLabel.style.marginBottom = '.25rem';
+
+      const radioGroup = el('div', { className: 'radio-group' });
+      const noneRadio = el('label', { className: 'radio-label' });
+      noneRadio.appendChild(el('input', { type: 'radio', name: `img-${question.id}`, value: 'none', checked: (!question.imageType || !question.image) ? 'true' : null }));
+      noneRadio.appendChild(document.createTextNode('Aucune'));
+      const urlRadio = el('label', { className: 'radio-label' });
+      urlRadio.appendChild(el('input', { type: 'radio', name: `img-${question.id}`, value: 'url', checked: question.imageType === 'url' ? 'true' : null }));
+      urlRadio.appendChild(document.createTextNode('URL'));
+      const fileRadio = el('label', { className: 'radio-label' });
+      fileRadio.appendChild(el('input', { type: 'radio', name: `img-${question.id}`, value: 'file', checked: question.imageType === 'base64' ? 'true' : null }));
+      fileRadio.appendChild(document.createTextNode('Fichier'));
+      radioGroup.appendChild(noneRadio);
+      radioGroup.appendChild(urlRadio);
+      radioGroup.appendChild(fileRadio);
+
+      const imgInputArea = el('div', { className: 'mt-1' });
+      const urlInput = el('input', { type: 'text', className: 'input', placeholder: 'https://...' });
+      const fileInput = el('input', { type: 'file', className: 'input', accept: 'image/*' });
+      fileInput.style.padding = '.4rem';
+
+      const previewDiv = el('div', { className: 'image-preview hidden' });
+      const previewImg = el('img', {});
+      previewDiv.appendChild(previewImg);
+      const removeImgBtn = el('button', { className: 'btn btn-ghost btn-sm mt-1' }, 'Retirer l\'image');
+      previewDiv.appendChild(removeImgBtn);
+
+      function showImageControls() {
+        const selected = radioGroup.querySelector('input:checked')?.value || 'none';
+        imgInputArea.innerHTML = '';
+        if (selected === 'url') {
+          urlInput.value = question.imageType === 'url' ? (question.image || '') : '';
+          imgInputArea.appendChild(urlInput);
+        } else if (selected === 'file') {
+          imgInputArea.appendChild(fileInput);
+        }
+        if (question.image && question.imageType === 'base64') {
+          show(previewDiv);
+          previewImg.src = question.image;
+        } else if (question.image && question.imageType === 'url') {
+          show(previewDiv);
+          previewImg.src = question.image;
+        } else {
+          hide(previewDiv);
+        }
+      }
+
+      radioGroup.querySelectorAll('input').forEach(r => {
+        r.addEventListener('change', () => {
+          question.image = null;
+          question.imageType = null;
+          showImageControls();
+        });
+      });
+
+      urlInput.addEventListener('input', () => {
+        const val = urlInput.value.trim();
+        if (val) {
+          question.image = val;
+          question.imageType = 'url';
+          previewImg.src = val;
+          show(previewDiv);
+        } else {
+          question.image = null;
+          question.imageType = null;
+          hide(previewDiv);
+        }
+      });
+
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files?.[0];
+        if (file) {
+          try {
+            const dataUrl = await readFileAsDataURL(file);
+            question.image = dataUrl;
+            question.imageType = 'base64';
+            previewImg.src = dataUrl;
+            show(previewDiv);
+          } catch (e) {
+            alert('Erreur lors de la lecture du fichier image.');
+          }
+        }
+      });
+
+      removeImgBtn.addEventListener('click', () => {
+        question.image = null;
+        question.imageType = null;
+        hide(previewDiv);
+        urlInput.value = '';
+        fileInput.value = '';
+        noneRadio.querySelector('input').checked = true;
+        showImageControls();
+      });
+
+      imageSection.appendChild(imgLabel);
+      imageSection.appendChild(radioGroup);
+      imageSection.appendChild(imgInputArea);
+      imageSection.appendChild(previewDiv);
+      body.appendChild(imageSection);
+
+      const answersSection = el('div', { className: 'answer-bank' });
+      const ansHeader = el('div', { className: 'answer-bank-header' });
+      ansHeader.appendChild(el('h4', {}, 'Banque de réponses'));
+      const addAnsBtn = el('button', { className: 'btn btn-ghost btn-sm' }, '+ Ajouter une réponse');
+      ansHeader.appendChild(addAnsBtn);
+      answersSection.appendChild(ansHeader);
+
+      const answersList = el('div', { className: 'answers-list' });
+
+      function renderAnswers() {
+        answersList.innerHTML = '';
+        question.answers.forEach((a, ai) => {
+          const row = el('div', { className: 'answer-row' });
+          const textInp = el('input', { type: 'text', className: 'input answer-text', value: a.text, placeholder: `Réponse ${ai + 1}` });
+          textInp.addEventListener('input', () => { a.text = textInp.value; });
+          row.appendChild(textInp);
+
+          const correctLabel = el('label', { className: 'answer-correct' });
+          const cb = el('input', { type: 'checkbox' });
+          cb.checked = a.correct;
+          cb.addEventListener('change', () => { a.correct = cb.checked; });
+          correctLabel.appendChild(cb);
+          correctLabel.appendChild(document.createTextNode('Correct'));
+          row.appendChild(correctLabel);
+
+          const deleteAnsBtn = el('button', { className: 'btn btn-ghost btn-icon btn-sm', title: 'Supprimer cette réponse' });
+          deleteAnsBtn.innerHTML = '&#10005;';
+          deleteAnsBtn.style.fontSize = '.75rem';
+          deleteAnsBtn.addEventListener('click', () => {
+            if (question.answers.length <= 2) {
+              alert('Il faut au moins 2 réponses par question.');
+              return;
+            }
+            question.answers.splice(ai, 1);
+            if (question.answersToShow > question.answers.length) {
+              question.answersToShow = question.answers.length;
+              showCountInput.value = question.answersToShow;
+            }
+            renderAnswers();
+            updateShowCount();
+          });
+          row.appendChild(deleteAnsBtn);
+
+          answersList.appendChild(row);
+        });
+        updateShowCount();
+      }
+
+      addAnsBtn.addEventListener('click', () => {
+        question.answers.push(createEmptyAnswer());
+        question.answersToShow = Math.min(question.answersToShow + 1, question.answers.length);
+        renderAnswers();
+      });
+
+      answersSection.appendChild(answersList);
+
+      const showCountRow = el('div', { className: 'form-group mt-2' });
+      showCountRow.appendChild(el('label', { htmlFor: `show-count-${question.id}` }, 'Nombre de réponses à afficher pendant le quiz'));
+      const showCountInput = el('input', { type: 'number', id: `show-count-${question.id}`, className: 'input', min: '2', value: String(question.answersToShow) });
+      showCountInput.style.width = '120px';
+      showCountInput.addEventListener('input', () => {
+        const val = parseInt(showCountInput.value, 10);
+        const valid = question.answers.filter(a => a.text && a.text.trim());
+        const max = valid.length || question.answers.length;
+        if (!isNaN(val) && val >= 2 && val <= max) {
+          question.answersToShow = val;
+        }
+      });
+
+      function updateShowCount() {
+        const valid = question.answers.filter(a => a.text && a.text.trim());
+        const max = Math.max(2, valid.length || question.answers.length);
+        showCountInput.max = String(max);
+        if (question.answersToShow > max) {
+          question.answersToShow = max;
+        }
+        if (question.answersToShow < 2) {
+          question.answersToShow = 2;
+        }
+        showCountInput.value = String(question.answersToShow);
+        showCountInput.min = '2';
+        showCountInput.max = String(max);
+      }
+
+      showCountRow.appendChild(el('span', { className: 'hint' }, `Parmi les ${question.answers.length} réponses de la banque, le site en choisira aléatoirement le nombre indiqué pour chaque participant.`));
+      answersSection.appendChild(showCountRow);
+
+      body.appendChild(answersSection);
+      card.appendChild(body);
+
+      setTimeout(() => showImageControls(), 0);
+      setTimeout(() => renderAnswers(), 0);
+
+      return card;
+    }
+
+    function moveQuestion(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= quiz.questions.length) return;
+      const [moved] = quiz.questions.splice(index, 1);
+      quiz.questions.splice(newIndex, 0, moved);
+      renderAllQuestions();
+    }
+
+    function deleteQuestion(index) {
+      if (!confirm('Supprimer cette question ?')) return;
+      quiz.questions.splice(index, 1);
+      renderAllQuestions();
+    }
+
+    function addQuestion() {
+      const q = createEmptyQuestion();
+      quiz.questions.push(q);
+      questionCount = quiz.questions.length;
+      renderAllQuestions();
+      const lastCard = $(`.question-card[data-qid="${q.id}"]`);
+      if (lastCard) {
+        lastCard.classList.add('animate-in');
+        lastCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    addQuestionBtn.addEventListener('click', addQuestion);
+    addFirstBtn.addEventListener('click', addQuestion);
+
+    downloadBtn.addEventListener('click', () => {
+      syncMetaToQuiz();
+      try {
+        const content = exportQuizFile(quiz);
+        const filename = (quiz.title || 'quiz').replace(/[^a-zA-Z0-9\u00C0-\u017F ]/g, '').trim().replace(/\s+/g, '-').toLowerCase() || 'quiz';
+        downloadFile(`${filename}.quiz`, content);
+      } catch (e) {
+        alert('Erreur : ' + e.message);
+      }
+    });
+
+    importBtn.addEventListener('click', () => importFile.click());
+
+    importFile.addEventListener('change', async () => {
+      const file = importFile.files?.[0];
+      if (!file) return;
+      try {
+        const content = await readFile(file);
+        const parsed = parseQuizFile(content);
+        quiz = parsed;
+        titleInput.value = quiz.title || '';
+        descInput.value = quiz.description || '';
+        questionCount = quiz.questions.length;
+        renderAllQuestions();
+      } catch (e) {
+        alert('Erreur lors de l\'import : ' + e.message);
+      }
+      importFile.value = '';
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>

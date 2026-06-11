@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Héberger une partie — Precept</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="index.html" class="brand">Precept</a>
+    <ul class="nav-links">
+      <li><a href="create.html">Créer</a></li>
+      <li><a href="host.html" style="color:var(--color-primary)">Héberger</a></li>
+      <li><a href="join.html">Rejoindre</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>Héberger une partie</h1>
+      <p>Importez un quiz, créez un salon et lancez la partie</p>
+    </header>
+
+    <div id="host-app" class="host-flow">
+
+      <section id="import-section">
+        <div class="upload-zone" id="upload-zone">
+          <div class="icon" style="font-size:2.5rem;margin-bottom:.5rem">&#128230;</div>
+          <p style="font-weight:600;margin-bottom:.25rem">Glissez votre fichier .quiz ici</p>
+          <p style="font-size:.85rem">ou cliquez pour parcourir</p>
+          <input type="file" id="quiz-file-input" accept=".quiz,.json" style="display:none">
+        </div>
+        <div id="quiz-info-display" class="hidden"></div>
+      </section>
+
+      <section id="config-section" class="hidden">
+        <div class="card">
+          <h3>Paramètres de la partie</h3>
+          <div class="config-grid mt-2">
+            <div class="form-group">
+              <label>Temps par question</label>
+              <div class="flex gap-1 flex-wrap mt-1" id="time-presets">
+              </div>
+              <div class="flex items-center gap-1 mt-1">
+                <input type="number" id="time-custom" class="input" value="30" min="5" max="120" style="width:80px">
+                <span style="font-size:.85rem;color:var(--color-text-light)">secondes</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="shuffle-questions">Ordre des questions</label>
+              <div class="checkbox-label mt-1">
+                <input type="checkbox" id="shuffle-questions" checked>
+                Mélanger aléatoirement
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="max-players">Nombre maximum de joueurs</label>
+              <input type="number" id="max-players" class="input" value="0" min="0" max="100" style="width:120px">
+              <span class="hint">0 = illimité</span>
+            </div>
+          </div>
+        </div>
+        <div class="mt-3 text-center">
+          <button id="create-room-btn" class="btn btn-primary btn-lg">Créer le salon</button>
+          <button id="back-to-import-btn" class="btn btn-ghost">Changer de quiz</button>
+        </div>
+      </section>
+
+      <section id="room-section" class="hidden">
+        <div class="room-code-display">
+          <div class="label">Code du salon</div>
+          <div class="code" id="room-code-text">----</div>
+          <p style="font-size:.85rem;margin-top:.5rem">Communiquez ce code aux participants</p>
+        </div>
+        <div class="card">
+          <div class="flex justify-between items-center">
+            <h3>Joueurs en attente</h3>
+            <span id="player-count" class="player-count">0 joueur</span>
+          </div>
+          <div id="player-list" class="player-list">
+            <div class="empty-state" id="no-players" style="padding:1.5rem">
+              <p>En attente de joueurs...</p>
+            </div>
+          </div>
+        </div>
+        <div class="text-center mt-3">
+          <button id="start-game-btn" class="btn btn-success btn-lg" disabled>Lancer la partie</button>
+          <p style="font-size:.8rem;color:var(--color-text-light);margin-top:.5rem">Minimum 1 joueur requis</p>
+        </div>
+      </section>
+
+      <section id="game-section" class="hidden">
+        <div id="game-question" class="card question-display">
+          <div class="q-number" id="q-progress"></div>
+          <div class="q-text" id="q-text"></div>
+          <div class="q-image hidden" id="q-image-container">
+            <img id="q-image" alt="Image de la question">
+          </div>
+        </div>
+
+        <div class="timer-bar-container">
+          <div class="timer-bar safe" id="timer-bar" style="width:100%"></div>
+        </div>
+        <div class="timer-text" id="timer-text">30s</div>
+
+        <div class="flex justify-between items-center mt-2">
+          <span style="font-size:.9rem;color:var(--color-text-light)" id="answer-progress">0/0 ont répondu</span>
+          <button id="skip-timer-btn" class="btn btn-ghost btn-sm">Terminer le temps</button>
+        </div>
+
+        <div id="answer-distribution" class="answer-stats"></div>
+
+        <div id="reveal-info" class="hidden mt-2">
+          <div id="correct-answer-display" class="card card-success" style="text-align:center;padding:1rem">
+            <strong>Bonne réponse :</strong> <span id="correct-answer-text"></span>
+          </div>
+          <div class="text-center mt-3">
+            <button id="next-question-btn" class="btn btn-primary btn-lg">Question suivante</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="results-section" class="hidden">
+        <div class="card">
+          <h2 class="text-center">Partie terminée !</h2>
+          <div id="podium-container" class="podium"></div>
+          <div id="scoreboard-container" class="scoreboard"></div>
+          <div class="text-center mt-3">
+            <button id="new-game-btn" class="btn btn-primary btn-lg">Nouvelle partie</button>
+            <button id="back-home-btn" class="btn btn-ghost">Retour à l'accueil</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script type="module">
+    import { $, show, hide, setText, setHTML, readFile, shuffle, el } from './js/utils.js';
+    import { parseQuizFile, pickAnswersForQuestion, getCorrectAnswerId } from './js/quiz-file.js';
+    import { PeerHost, generateRoomId } from './js/peer.js';
+    import { MSG, makeMsg } from './js/game-protocol.js';
+
+    let quiz = null;
+    let host = null;
+    let settings = { timePerQuestion: 30, shuffleQuestions: true, maxPlayers: 0 };
+    let gameState = {
+      currentQuestionIndex: -1,
+      totalQuestions: 0,
+      timePerQuestion: 30,
+      answers: new Map(),
+      timerInterval: null,
+      timeLeft: 0,
+      questions: [],
+      currentPickedAnswers: []
+    };
+    let disconnectedPlayers = new Set();
+
+    const importSection = $('#import-section');
+    const configSection = $('#config-section');
+    const roomSection = $('#room-section');
+    const gameSection = $('#game-section');
+    const resultsSection = $('#results-section');
+
+    function showSection(section) {
+      [importSection, configSection, roomSection, gameSection, resultsSection].forEach(s => hide(s));
+      show(section);
+    }
+
+    // --- IMPORT ---
+    const uploadZone = $('#upload-zone');
+    const fileInput = $('#quiz-file-input');
+    const quizInfoDisplay = $('#quiz-info-display');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      const file = e.dataTransfer.files?.[0];
+      if (file) processQuizFile(file);
+    });
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files?.[0];
+      if (file) processQuizFile(file);
+    });
+
+    async function processQuizFile(file) {
+      try {
+        const content = await readFile(file);
+        quiz = parseQuizFile(content);
+        displayQuizInfo();
+        show(configSection);
+        hide(uploadZone);
+        show(quizInfoDisplay);
+        updateStartButton();
+      } catch (e) {
+        alert('Erreur : ' + e.message);
+      }
+    }
+
+    function displayQuizInfo() {
+      setHTML(quizInfoDisplay, `
+        <div class="quiz-info">
+          <div class="quiz-icon">&#128214;</div>
+          <div>
+            <h3>${escapeHtml(quiz.title)}</h3>
+            <p style="font-size:.9rem">${quiz.questions.length} questions &middot; ${quiz.description ? escapeHtml(quiz.description) : 'Aucune description'}</p>
+          </div>
+        </div>
+      `);
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // --- CONFIG ---
+    const timePresets = $('#time-presets');
+    const timeCustom = $('#time-custom');
+    const shuffleToggle = $('#shuffle-questions');
+    const maxPlayersInput = $('#max-players');
+    const createRoomBtn = $('#create-room-btn');
+    const backToImportBtn = $('#back-to-import-btn');
+
+    [10, 20, 30, 45, 60].forEach(t => {
+      const btn = el('button', { className: 'btn btn-ghost btn-sm' }, `${t}s`);
+      if (t === 30) btn.classList.add('btn-outline');
+      btn.addEventListener('click', () => {
+        timePresets.querySelectorAll('.btn').forEach(b => { b.className = 'btn btn-ghost btn-sm'; });
+        btn.className = 'btn btn-outline btn-sm';
+        timeCustom.value = t;
+        settings.timePerQuestion = t;
+      });
+      timePresets.appendChild(btn);
+    });
+
+    timeCustom.addEventListener('input', () => {
+      const val = parseInt(timeCustom.value, 10);
+      if (!isNaN(val) && val >= 5 && val <= 120) {
+        settings.timePerQuestion = val;
+        timePresets.querySelectorAll('.btn').forEach(b => { b.className = 'btn btn-ghost btn-sm'; });
+      }
+    });
+
+    shuffleToggle.addEventListener('change', () => { settings.shuffleQuestions = shuffleToggle.checked; });
+    maxPlayersInput.addEventListener('input', () => { settings.maxPlayers = parseInt(maxPlayersInput.value, 10) || 0; });
+
+    backToImportBtn.addEventListener('click', () => {
+      show(uploadZone);
+      hide(quizInfoDisplay);
+      hide(configSection);
+      quiz = null;
+    });
+
+    // --- ROOM ---
+    const roomCodeText = $('#room-code-text');
+    const playerList = $('#player-list');
+    const noPlayers = $('#no-players');
+    const playerCountSpan = $('#player-count');
+    const startGameBtn = $('#start-game-btn');
+
+    createRoomBtn.addEventListener('click', async () => {
+      settings.timePerQuestion = parseInt(timeCustom.value, 10) || 30;
+      settings.shuffleQuestions = shuffleToggle.checked;
+      settings.maxPlayers = parseInt(maxPlayersInput.value, 10) || 0;
+
+      const roomId = generateRoomId();
+      host = new PeerHost(roomId);
+
+      try {
+        await host.init();
+        roomCodeText.textContent = roomId;
+        host.onPlayerJoined = onPlayerJoined;
+        host.onPlayerLeft = onPlayerLeft;
+        host.onMessage = onHostMessage;
+        showSection(roomSection);
+      } catch (e) {
+        alert('Erreur de connexion au réseau P2P. Vérifiez votre connexion internet.\n' + e.message);
+        host = null;
+      }
+    });
+
+    function onPlayerJoined(player) {
+      hide(noPlayers);
+      const item = el('div', { className: 'player-item animate-in', 'data-player-id': player.id });
+      const avatar = el('div', { className: 'avatar' }, player.nickname.charAt(0).toUpperCase());
+      const name = el('span', { className: 'name' }, player.nickname);
+      item.appendChild(avatar);
+      item.appendChild(name);
+      playerList.appendChild(item);
+      updatePlayerCount();
+      updateStartButton();
+    }
+
+    function onPlayerLeft(playerId) {
+      const item = playerList.querySelector(`[data-player-id="${playerId}"]`);
+      if (item) item.remove();
+      const player = host?.players?.get(playerId);
+      if (gameState.currentQuestionIndex >= 0 && gameState.currentQuestionIndex < gameState.totalQuestions) {
+        disconnectedPlayers.add(playerId);
+        gameState.answers.delete(playerId);
+        updateAnswerProgress();
+      }
+      updatePlayerCount();
+      updateStartButton();
+      if (host?.getPlayerCount() === 0 && host?.players) {
+        show(noPlayers);
+      }
+    }
+
+    function onHostMessage(playerId, data) {
+      if (data.type === MSG.ANSWER && gameState.currentQuestionIndex >= 0) {
+        const existing = gameState.answers.get(playerId);
+        if (!existing) {
+          gameState.answers.set(playerId, {
+            answerId: data.answerId,
+            questionIndex: data.questionIndex
+          });
+          updateAnswerProgress();
+          checkAllAnswered();
+        }
+      }
+    }
+
+    function updatePlayerCount() {
+      const count = host?.getPlayerCount() || 0;
+      playerCountSpan.textContent = `${count} joueur${count !== 1 ? 's' : ''}`;
+    }
+
+    function updateStartButton() {
+      const count = host?.getPlayerCount() || 0;
+      startGameBtn.disabled = count < 1;
+    }
+
+    // --- GAME ---
+    const qProgress = $('#q-progress');
+    const qText = $('#q-text');
+    const qImageContainer = $('#q-image-container');
+    const qImage = $('#q-image');
+    const timerBar = $('#timer-bar');
+    const timerText = $('#timer-text');
+    const answerProgress = $('#answer-progress');
+    const skipTimerBtn = $('#skip-timer-btn');
+    const answerDistribution = $('#answer-distribution');
+    const revealInfo = $('#reveal-info');
+    const correctAnswerText = $('#correct-answer-text');
+    const nextQuestionBtn = $('#next-question-btn');
+
+    startGameBtn.addEventListener('click', startGame);
+
+    function startGame() {
+      const players = host.getPlayers();
+      if (players.length === 0) { alert('Au moins un joueur est requis.'); return; }
+
+      let questions = [...quiz.questions];
+      if (settings.shuffleQuestions) questions = shuffle(questions);
+      gameState.questions = questions;
+      gameState.totalQuestions = questions.length;
+      gameState.timePerQuestion = settings.timePerQuestion;
+
+      players.forEach(p => { p.score = 0; p.correctCount = 0; });
+      disconnectedPlayers.clear();
+
+      host.broadcast(makeMsg(MSG.GAME_START, {
+        totalQuestions: gameState.totalQuestions,
+        timePerQuestion: settings.timePerQuestion
+      }));
+
+      showSection(gameSection);
+      gameState.currentQuestionIndex = 0;
+      sendCurrentQuestion();
+    }
+
+    function sendCurrentQuestion() {
+      const idx = gameState.currentQuestionIndex;
+      if (idx >= gameState.totalQuestions) {
+        endGame();
+        return;
+      }
+
+      const q = gameState.questions[idx];
+      const pickedAnswers = pickAnswersForQuestion(q);
+      gameState.currentPickedAnswers = pickedAnswers;
+
+      gameState.answers.clear();
+      gameState.timeLeft = gameState.timePerQuestion;
+
+      qProgress.textContent = `Question ${idx + 1} / ${gameState.totalQuestions}`;
+      qText.textContent = q.text;
+
+      if (q.image) {
+        show(qImageContainer);
+        qImage.src = q.image;
+      } else {
+        hide(qImageContainer);
+      }
+
+      hide(revealInfo);
+      show(answerDistribution);
+
+      setHTML(answerDistribution, pickedAnswers.map(a =>
+        `<div class="answer-stat" data-aid="${a.id}">
+          <strong>${escapeHtml(a.text)}</strong>
+          <div class="stat-bar"><div class="stat-fill" style="width:0%"></div></div>
+          <span style="font-size:.8rem;color:var(--color-text-light)">0 réponse</span>
+        </div>`
+      ).join(''));
+
+      updateTimerDisplay();
+      updateAnswerProgress();
+      startTimer();
+
+      host.broadcast(makeMsg(MSG.QUESTION, {
+        questionIndex: idx,
+        questionNumber: idx + 1,
+        totalQuestions: gameState.totalQuestions,
+        text: q.text,
+        image: q.image || null,
+        answers: pickedAnswers,
+        timeLimit: gameState.timePerQuestion,
+        sentAt: Date.now()
+      }));
+    }
+
+    function startTimer() {
+      clearInterval(gameState.timerInterval);
+      gameState.timerInterval = setInterval(() => {
+        gameState.timeLeft--;
+        updateTimerDisplay();
+        if (gameState.timeLeft <= 0) {
+          clearInterval(gameState.timerInterval);
+          onQuestionTimeUp();
+        }
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const total = gameState.timePerQuestion;
+      const left = gameState.timeLeft;
+      const pct = Math.max(0, (left / total) * 100);
+      timerBar.style.width = pct + '%';
+      timerText.textContent = left + 's';
+
+      timerBar.classList.remove('safe', 'warning', 'danger');
+      timerText.classList.remove('urgent');
+      if (pct > 50) { timerBar.classList.add('safe'); }
+      else if (pct > 25) { timerBar.classList.add('warning'); }
+      else { timerBar.classList.add('danger'); timerText.classList.add('urgent'); }
+    }
+
+    function updateAnswerProgress() {
+      const answered = gameState.answers.size;
+      const total = host.getPlayers().length;
+      answerProgress.textContent = `${answered}/${total} ont r\u00e9pondu`;
+    }
+
+    function checkAllAnswered() {
+      const total = host.getPlayers().length;
+      if (gameState.answers.size >= total && gameState.currentQuestionIndex < gameState.totalQuestions) {
+        clearInterval(gameState.timerInterval);
+        onQuestionTimeUp();
+      }
+    }
+
+    function onQuestionTimeUp() {
+      clearInterval(gameState.timerInterval);
+      host.broadcast(makeMsg(MSG.TIME_UP, {}));
+
+      const q = gameState.questions[gameState.currentQuestionIndex];
+      const correctId = getCorrectAnswerId(q);
+      const correctIds = Array.isArray(correctId) ? correctId : [correctId];
+
+      const playerResults = [];
+      host.getPlayers().forEach(p => {
+        const ans = gameState.answers.get(p.id);
+        const chosenId = ans?.answerId || null;
+        const correct = chosenId && correctIds.includes(chosenId);
+        if (correct) { p.score++; p.correctCount++; }
+        const result = {
+          playerId: p.id,
+          nickname: p.nickname,
+          answerId: chosenId,
+          correct
+        };
+        playerResults.push(result);
+        host.sendTo(p.id, makeMsg(MSG.REVEAL, {
+          questionIndex: gameState.currentQuestionIndex,
+          correctAnswerId: correctIds[0],
+          yourAnswer: chosenId,
+          yourCorrect: correct,
+          yourScore: p.score
+        }));
+      });
+
+      const pickedAnswers = gameState.currentPickedAnswers;
+      setHTML(answerDistribution, pickedAnswers.map(a => {
+        const count = gameState.answers.values().filter(v => v.answerId === a.id).length;
+        const totalResponses = Math.max(1, gameState.answers.size || host.getPlayers().length);
+        const pct = Math.round((count / totalResponses) * 100);
+        const isCorrect = correctIds.includes(a.id);
+        return `<div class="answer-stat ${isCorrect ? 'correct' : ''}" data-aid="${a.id}">
+          <strong>${escapeHtml(a.text)} ${isCorrect ? '&#10003;' : ''}</strong>
+          <div class="stat-bar"><div class="stat-fill" style="width:${pct}%"></div></div>
+          <span style="font-size:.8rem;color:var(--color-text-light)">${count} réponse${count !== 1 ? 's' : ''}</span>
+        </div>`;
+      }).join(''));
+
+      const correctAnswer = q.answers.find(a => correctIds.includes(a.id));
+      correctAnswerText.textContent = correctAnswer ? correctAnswer.text : 'N/A';
+
+      disableAnswers();
+      show(revealInfo);
+
+      const isLast = gameState.currentQuestionIndex >= gameState.totalQuestions - 1;
+      nextQuestionBtn.textContent = isLast ? 'Voir les r\u00e9sultats' : 'Question suivante';
+    }
+
+    function disableAnswers() {
+      answerDistribution.querySelectorAll('.answer-stat').forEach(el => el.style.pointerEvents = 'none');
+    }
+
+    skipTimerBtn.addEventListener('click', () => {
+      if (gameState.currentQuestionIndex < gameState.totalQuestions) {
+        gameState.timeLeft = 0;
+        updateTimerDisplay();
+        clearInterval(gameState.timerInterval);
+        onQuestionTimeUp();
+      }
+    });
+
+    nextQuestionBtn.addEventListener('click', () => {
+      gameState.currentQuestionIndex++;
+      if (gameState.currentQuestionIndex >= gameState.totalQuestions) {
+        endGame();
+      } else {
+        sendCurrentQuestion();
+      }
+    });
+
+    // --- RESULTS ---
+    const podiumContainer = $('#podium-container');
+    const scoreboardContainer = $('#scoreboard-container');
+
+    function endGame() {
+      clearInterval(gameState.timerInterval);
+      showSection(resultsSection);
+
+      const players = host.getPlayers();
+      const leaderboard = players
+        .map(p => ({ id: p.id, nickname: p.nickname, score: p.score, correctCount: p.correctCount }))
+        .sort((a, b) => b.score - a.score);
+
+      host.broadcast(makeMsg(MSG.GAME_END, {
+        scores: leaderboard,
+        totalQuestions: gameState.totalQuestions
+      }));
+
+      renderPodium(leaderboard);
+      renderScoreboard(leaderboard);
+    }
+
+    function renderPodium(leaderboard) {
+      const top3 = leaderboard.slice(0, 3);
+      if (top3.length === 0) {
+        podiumContainer.innerHTML = '<p class="text-center">Aucun joueur</p>';
+        return;
+      }
+      const ordered = [top3[1], top3[0], top3[2]].filter(Boolean);
+      setHTML(podiumContainer, ordered.map((p, i) => {
+        const realRank = leaderboard.indexOf(p) + 1;
+        const medals = ['', '🥇', '🥈', '🥉'];
+        return `<div class="podium-item">
+          <div class="podium-rank">${medals[realRank] || realRank}</div>
+          <div class="podium-name">${escapeHtml(p.nickname)}</div>
+          <div class="podium-score">${p.score} pt${p.score !== 1 ? 's' : ''}</div>
+          <div class="podium-bar"></div>
+        </div>`;
+      }).join(''));
+    }
+
+    function renderScoreboard(leaderboard) {
+      setHTML(scoreboardContainer, `
+        <h3 class="mt-2 mb-1">Classement complet</h3>
+        <table>
+          <thead><tr><th>#</th><th>Joueur</th><th>Score</th><th>Bonnes r\u00e9ponses</th></tr></thead>
+          <tbody>${leaderboard.map((p, i) => `
+            <tr>
+              <td class="rank rank-${i+1 <= 3 ? i+1 : ''}">${i + 1}</td>
+              <td>${escapeHtml(p.nickname)}</td>
+              <td><strong>${p.score}</strong> / ${gameState.totalQuestions}</td>
+              <td>${p.correctCount}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      `);
+    }
+
+    $('#new-game-btn').addEventListener('click', () => {
+      gameState.currentQuestionIndex = -1;
+      gameState.totalQuestions = 0;
+      gameState.answers.clear();
+      disconnectedPlayers.clear();
+      host.getPlayers().forEach(p => { p.score = 0; p.correctCount = 0; });
+      showSection(roomSection);
+      updatePlayerCount();
+      updateStartButton();
+    });
+
+    $('#back-home-btn').addEventListener('click', () => {
+      if (host) { host.destroy(); host = null; }
+      window.location.href = 'index.html';
+    });
+
+    showSection(importSection);
+  </script>
+</body>
+</html>

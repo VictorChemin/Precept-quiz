@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rejoindre une partie — Precept</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+</head>
+<body>
+  <nav class="top-nav">
+    <a href="index.html" class="brand">Precept</a>
+    <ul class="nav-links">
+      <li><a href="create.html">Créer</a></li>
+      <li><a href="host.html">Héberger</a></li>
+      <li><a href="join.html" style="color:var(--color-primary)">Rejoindre</a></li>
+    </ul>
+  </nav>
+
+  <main class="container">
+    <header class="page-header">
+      <h1>Rejoindre une partie</h1>
+      <p>Entrez le code du salon et un pseudo pour jouer</p>
+    </header>
+
+    <div id="join-app">
+
+      <section id="connect-section">
+        <div class="join-form">
+          <div class="card">
+            <h2>Connexion</h2>
+            <p>Demandez le code du salon à l'hôte de la partie.</p>
+            <div class="form-group">
+              <label for="room-code-input">Code du salon</label>
+              <input type="text" id="room-code-input" class="input" placeholder="Ex : precept-bleu-42" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="form-group">
+              <label for="nickname-input">Votre pseudo</label>
+              <input type="text" id="nickname-input" class="input" placeholder="Entrez votre pseudo..." maxlength="30" autocomplete="off">
+            </div>
+            <button id="join-btn" class="btn btn-primary btn-lg" style="width:100%">Rejoindre la partie</button>
+            <p id="join-error" class="hidden text-error" style="margin-top:.75rem;font-size:.85rem"></p>
+          </div>
+        </div>
+      </section>
+
+      <section id="waiting-section" class="hidden">
+        <div class="waiting-view">
+          <div class="spinner"></div>
+          <h2>En attente du lancement...</h2>
+          <p>L'hôte va bientôt lancer la partie. Restez prêt !</p>
+          <p style="font-size:.85rem;color:var(--color-text-lighter)">Quiz : <span id="waiting-quiz-title">—</span></p>
+        </div>
+      </section>
+
+      <section id="play-section" class="hidden">
+        <div class="play-view">
+          <div id="play-question" class="card question-display">
+            <div class="q-number" id="play-q-progress"></div>
+            <div class="q-text" id="play-q-text"></div>
+            <div class="q-image hidden" id="play-q-image-container">
+              <img id="play-q-image" alt="Image de la question">
+            </div>
+          </div>
+
+          <div>
+            <div class="timer-bar-container">
+              <div class="timer-bar safe" id="play-timer-bar" style="width:100%"></div>
+            </div>
+            <div class="timer-text" id="play-timer-text">30s</div>
+          </div>
+
+          <div id="play-answers" class="answers-grid"></div>
+
+          <div id="play-feedback" class="hidden">
+            <div class="feedback-banner" id="play-feedback-banner"></div>
+            <p class="text-center mt-1" style="font-size:.9rem">
+              Score : <strong id="play-score-display">0</strong>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="player-results-section" class="hidden">
+        <div class="card">
+          <h2 class="text-center">Partie terminée !</h2>
+          <p class="text-center" style="font-size:1.1rem;margin:1rem 0">
+            Votre score : <strong id="your-final-score" class="text-primary"></strong>
+          </p>
+          <div id="player-podium" class="podium"></div>
+          <div id="player-scoreboard" class="scoreboard"></div>
+          <div class="text-center mt-3">
+            <button id="player-new-game-btn" class="btn btn-outline">Rejoindre une autre partie</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script type="module">
+    import { $, show, hide, setText, setHTML, el } from './js/utils.js';
+    import { PeerPlayer } from './js/peer.js';
+    import { MSG, makeMsg } from './js/game-protocol.js';
+
+    let player = null;
+    let playerScore = 0;
+    let timerInterval = null;
+    let currentQuestionIndex = -1;
+    let hasAnswered = false;
+    let isGameOver = false;
+
+    const connectSection = $('#connect-section');
+    const waitingSection = $('#waiting-section');
+    const playSection = $('#play-section');
+    const playerResultsSection = $('#player-results-section');
+
+    const roomCodeInput = $('#room-code-input');
+    const nicknameInput = $('#nickname-input');
+    const joinBtn = $('#join-btn');
+    const joinError = $('#join-error');
+
+    const waitingQuizTitle = $('#waiting-quiz-title');
+
+    const playQProgress = $('#play-q-progress');
+    const playQText = $('#play-q-text');
+    const playQImageContainer = $('#play-q-image-container');
+    const playQImage = $('#play-q-image');
+    const playTimerBar = $('#play-timer-bar');
+    const playTimerText = $('#play-timer-text');
+    const playAnswers = $('#play-answers');
+    const playFeedback = $('#play-feedback');
+    const playFeedbackBanner = $('#play-feedback-banner');
+    const playScoreDisplay = $('#play-score-display');
+
+    const yourFinalScore = $('#your-final-score');
+    const playerPodium = $('#player-podium');
+    const playerScoreboard = $('#player-scoreboard');
+
+    function showSection(section) {
+      [connectSection, waitingSection, playSection, playerResultsSection].forEach(s => hide(s));
+      show(section);
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    joinBtn.addEventListener('click', handleJoin);
+    roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJoin(); });
+    nicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJoin(); });
+
+    async function handleJoin() {
+      const roomId = roomCodeInput.value.trim();
+      const nickname = nicknameInput.value.trim();
+
+      if (!roomId) { showError('Veuillez entrer le code du salon.'); return; }
+      if (!nickname) { showError('Veuillez entrer un pseudo.'); return; }
+      if (nickname.length > 30) { showError('Le pseudo doit faire moins de 30 caractères.'); return; }
+
+      hide(joinError);
+      joinBtn.disabled = true;
+      joinBtn.textContent = 'Connexion en cours...';
+
+      player = new PeerPlayer();
+
+      try {
+        await player.init();
+        player.onMessage = onPlayerMessage;
+        player.onDisconnect = onDisconnect;
+        player.onError = onError;
+
+        await player.connect(roomId);
+        player.sendJoin(nickname);
+
+        showSection(waitingSection);
+      } catch (e) {
+        showError('Impossible de rejoindre le salon. Vérifiez le code et votre connexion.\n' + e.message);
+        player?.destroy();
+        player = null;
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Rejoindre la partie';
+      }
+    }
+
+    function showError(msg) {
+      joinError.textContent = msg;
+      show(joinError);
+    }
+
+    function onDisconnect() {
+      if (isGameOver) return;
+      alert('Connexion perdue avec l\'hôte. La partie est terminée.');
+      window.location.reload();
+    }
+
+    function onError(err) {
+      console.error('Player error:', err);
+      if (connectSection && !connectSection.classList.contains('hidden')) {
+        showError('Erreur de connexion.');
+        joinBtn.disabled = false;
+        joinBtn.textContent = 'Rejoindre la partie';
+      }
+    }
+
+    function onPlayerMessage(data) {
+      console.log('Player received:', data.type, data);
+      switch (data.type) {
+        case MSG.JOIN_ACK:
+          console.log('Join acknowledged, playerId:', data.playerId);
+          break;
+        case MSG.GAME_START:
+          isGameOver = false;
+          waitingQuizTitle.textContent = data.totalQuestions + ' questions';
+          playerScore = 0;
+          playScoreDisplay.textContent = '0';
+          showSection(playSection);
+          break;
+        case MSG.QUESTION:
+          handleQuestion(data);
+          break;
+        case MSG.TIME_UP:
+          handleTimeUp();
+          break;
+        case MSG.REVEAL:
+          handleReveal(data);
+          break;
+        case MSG.GAME_END:
+          handleGameEnd(data);
+          break;
+      }
+    }
+
+    function handleQuestion(data) {
+      hasAnswered = false;
+      currentQuestionIndex = data.questionIndex;
+      hide(playFeedback);
+
+      playQProgress.textContent = `Question ${data.questionNumber} / ${data.totalQuestions}`;
+      playQText.textContent = data.text;
+
+      if (data.image) {
+        show(playQImageContainer);
+        playQImage.src = data.image;
+      } else {
+        hide(playQImageContainer);
+      }
+
+      setHTML(playAnswers, data.answers.map(a =>
+        `<button class="answer-btn" data-aid="${a.id}">${escapeHtml(a.text)}</button>`
+      ).join(''));
+
+      playAnswers.querySelectorAll('.answer-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (hasAnswered) return;
+          hasAnswered = true;
+          playAnswers.querySelectorAll('.answer-btn').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          player.sendAnswer(data.questionIndex, btn.dataset.aid);
+        });
+      });
+
+      startPlayerTimer(data.timeLimit, data.sentAt);
+    }
+
+    function startPlayerTimer(timeLimit, sentAt) {
+      clearInterval(timerInterval);
+      const endTime = sentAt + timeLimit * 1000;
+
+      function update() {
+        const remaining = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
+        const total = timeLimit;
+        const pct = (remaining / total) * 100;
+
+        playTimerBar.style.width = pct + '%';
+        playTimerText.textContent = remaining + 's';
+
+        playTimerBar.classList.remove('safe', 'warning', 'danger');
+        playTimerText.classList.remove('urgent');
+        if (pct > 50) { playTimerBar.classList.add('safe'); }
+        else if (pct > 25) { playTimerBar.classList.add('warning'); }
+        else { playTimerBar.classList.add('danger'); playTimerText.classList.add('urgent'); }
+      }
+
+      update();
+      timerInterval = setInterval(update, 200);
+    }
+
+    function handleTimeUp() {
+      clearInterval(timerInterval);
+      playTimerBar.style.width = '0%';
+      playTimerText.textContent = '0s';
+      disableAnswerButtons();
+    }
+
+    function disableAnswerButtons() {
+      playAnswers.querySelectorAll('.answer-btn').forEach(b => { b.disabled = true; });
+    }
+
+    function handleReveal(data) {
+      clearInterval(timerInterval);
+      disableAnswerButtons();
+
+      playAnswers.querySelectorAll('.answer-btn').forEach(btn => {
+        if (btn.dataset.aid === data.correctAnswerId) {
+          btn.classList.add('revealed-correct');
+        }
+        if (btn.dataset.aid === data.yourAnswer && !data.yourCorrect) {
+          btn.classList.add('incorrect');
+        }
+        if (btn.dataset.aid === data.yourAnswer && data.yourCorrect) {
+          btn.classList.add('correct');
+        }
+      });
+
+      playerScore = data.yourScore;
+      playScoreDisplay.textContent = playerScore;
+
+      show(playFeedback);
+      if (data.yourCorrect) {
+        playFeedbackBanner.className = 'feedback-banner correct';
+        playFeedbackBanner.textContent = 'Bonne réponse !';
+      } else if (data.yourAnswer) {
+        playFeedbackBanner.className = 'feedback-banner incorrect';
+        playFeedbackBanner.textContent = 'Mauvaise réponse...';
+      } else {
+        playFeedbackBanner.className = 'feedback-banner incorrect';
+        playFeedbackBanner.textContent = 'Temps écoulé !';
+      }
+    }
+
+    function handleGameEnd(data) {
+      clearInterval(timerInterval);
+      isGameOver = true;
+      showSection(playerResultsSection);
+
+      const leaderboard = data.scores.sort((a, b) => b.score - a.score);
+
+      yourFinalScore.textContent = `${playerScore} / ${data.totalQuestions}`;
+
+      const top3 = leaderboard.slice(0, 3);
+      if (top3.length > 0) {
+        const ordered = [top3[1], top3[0], top3[2]].filter(Boolean);
+        setHTML(playerPodium, ordered.map((p, i) => {
+          const realRank = leaderboard.indexOf(p) + 1;
+          const medals = ['', '🥇', '🥈', '🥉'];
+          return `<div class="podium-item">
+            <div class="podium-rank">${medals[realRank] || realRank}</div>
+            <div class="podium-name">${escapeHtml(p.nickname)}</div>
+            <div class="podium-score">${p.score} pt${p.score !== 1 ? 's' : ''}</div>
+            <div class="podium-bar"></div>
+          </div>`;
+        }).join(''));
+      }
+
+      setHTML(playerScoreboard, `
+        <h3 class="mt-2 mb-1">Classement</h3>
+        <table>
+          <thead><tr><th>#</th><th>Joueur</th><th>Score</th></tr></thead>
+          <tbody>${leaderboard.map((p, i) => `
+            <tr>
+              <td class="rank rank-${i+1 <= 3 ? i+1 : ''}">${i + 1}</td>
+              <td>${escapeHtml(p.nickname)}${p.id === player?.playerId ? ' (vous)' : ''}</td>
+              <td><strong>${p.score}</strong> / ${data.totalQuestions}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      `);
+    }
+
+    $('#player-new-game-btn').addEventListener('click', () => {
+      if (player) { player.destroy(); player = null; }
+      window.location.reload();
+    });
+
+    showSection(connectSection);
+  </script>
+</body>
+</html>
