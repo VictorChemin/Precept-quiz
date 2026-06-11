@@ -27,7 +27,7 @@
 
       <section id="import-section">
         <div class="upload-zone" id="upload-zone">
-          <div class="icon" style="font-size:2.5rem;margin-bottom:.5rem">&#128230;</div>
+          <div class="icon" style="margin-bottom:.5rem"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="40" height="40" style="opacity:.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
           <p style="font-weight:600;margin-bottom:.25rem">Glissez votre fichier .quiz ici</p>
           <p style="font-size:.85rem">ou cliquez pour parcourir</p>
           <input type="file" id="quiz-file-input" accept=".quiz,.json" style="display:none">
@@ -209,7 +209,7 @@
     function displayQuizInfo() {
       setHTML(quizInfoDisplay, `
         <div class="quiz-info">
-          <div class="quiz-icon">&#128214;</div>
+          <div class="quiz-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="32" height="32"><path d="M8 6h9M8 12h9M8 18h5"/><circle cx="5" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="5" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></div>
           <div>
             <h3>${escapeHtml(fixOrphans(quiz.title))}</h3>
             <p style="font-size:.9rem">${quiz.questions.length} questions &middot; ${quiz.description ? escapeHtml(fixOrphans(quiz.description)) : 'Aucune description'}</p>
