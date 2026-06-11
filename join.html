@@ -113,7 +113,7 @@
 
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <script type="module">
-    import { $, show, hide, setText, setHTML, el } from './js/utils.js';
+    import { $, show, hide, setText, setHTML, el, fixOrphans } from './js/utils.js';
     import { PeerPlayer } from './js/peer.js';
     import { MSG, makeMsg } from './js/game-protocol.js';
 
@@ -361,7 +361,7 @@
       hide(playFeedback);
 
       playQProgress.textContent = `Question ${data.questionNumber} / ${data.totalQuestions}`;
-      playQText.textContent = data.text;
+      playQText.textContent = fixOrphans(data.text);
 
       if (data.image) {
         show(playQImageContainer);
@@ -371,7 +371,7 @@
       }
 
       setHTML(playAnswers, data.answers.map(a =>
-        `<button class="answer-btn" data-aid="${a.id}">${escapeHtml(a.text)}</button>`
+        `<button class="answer-btn" data-aid="${a.id}">${escapeHtml(fixOrphans(a.text))}</button>`
       ).join(''));
 
       playAnswers.querySelectorAll('.answer-btn').forEach(btn => {
@@ -494,7 +494,7 @@
 
     $('#player-new-game-btn').addEventListener('click', () => {
       if (player) { player.destroy(); player = null; }
-      window.location.reload();
+      window.location.href = 'join.html';
     });
 
     showSection(connectSection);

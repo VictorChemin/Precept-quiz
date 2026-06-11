@@ -32,6 +32,11 @@ export function toggle(el) { el?.classList.toggle('hidden'); }
 export function setHTML(el, html) { if (el) el.innerHTML = html; }
 export function setText(el, text) { if (el) el.textContent = text; }
 
+export function fixOrphans(text) {
+  if (!text) return text;
+  return text.replace(/ ([!?;:])/g, '\u00A0$1');
+}
+
 export function downloadFile(filename, content, mimeType = 'application/json') {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
