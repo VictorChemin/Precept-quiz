@@ -20,34 +20,40 @@
   <main class="container">
     <header class="page-header">
       <h1>Rejoindre une partie</h1>
-      <p>Entrez le code du salon et un pseudo pour jouer</p>
+      <p>Choisis ton pseudo, puis entre le code du salon</p>
     </header>
 
     <div id="join-app">
 
       <section id="connect-section">
         <div class="join-form">
-          <div class="card">
-            <h2>Connexion</h2>
-            <p>Demandez le code du salon à l'hôte de la partie.</p>
+
+          <div class="card" id="step-nickname">
+            <div class="icon" style="font-size:2.5rem;text-align:center;margin-bottom:.5rem">&#128100;</div>
+            <h2 style="text-align:center">Choisis ton pseudo</h2>
+            <p style="text-align:center">Ce sera ton nom pendant toute la partie</p>
             <div class="form-group">
-              <label>Code du salon</label>
-              <div class="code-input-group" id="code-input-group">
-                <input type="text" class="code-input" id="ci0" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
-                <input type="text" class="code-input" id="ci1" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
-                <input type="text" class="code-input" id="ci2" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
-                <input type="text" class="code-input" id="ci3" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
-                <input type="text" class="code-input" id="ci4" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
-                <input type="text" class="code-input" id="ci5" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
-              </div>
+              <input type="text" id="nickname-input" class="input" placeholder="Ton pseudo..." maxlength="30" autocomplete="off" style="text-align:center;font-size:1.1rem">
             </div>
-            <div class="form-group">
-              <label for="nickname-input">Votre pseudo</label>
-              <input type="text" id="nickname-input" class="input" placeholder="Entrez votre pseudo..." maxlength="30" autocomplete="off">
-            </div>
-            <button id="join-btn" class="btn btn-primary btn-lg" style="width:100%">Rejoindre la partie</button>
-            <p id="join-error" class="hidden text-error" style="margin-top:.75rem;font-size:.85rem"></p>
+            <button id="validate-nickname-btn" class="btn btn-primary btn-lg" style="width:100%" disabled>Continuer</button>
           </div>
+
+          <div class="card hidden" id="step-code">
+            <button id="back-to-nickname" class="btn btn-ghost btn-sm mb-2">&#8592; Changer de pseudo</button>
+            <p style="text-align:center;margin-bottom:1.25rem">
+              <span id="display-nickname" style="font-weight:700"></span>, entre le code du salon&nbsp;:
+            </p>
+            <div class="code-input-group">
+              <input type="text" class="code-input" id="ci0" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+              <input type="text" class="code-input" id="ci1" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+              <input type="text" class="code-input" id="ci2" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+              <input type="text" class="code-input" id="ci3" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+              <input type="text" class="code-input" id="ci4" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+              <input type="text" class="code-input" id="ci5" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+            </div>
+            <p id="join-error" class="hidden text-error" style="margin-top:.75rem;font-size:.85rem;text-align:center"></p>
+          </div>
+
         </div>
       </section>
 
@@ -123,33 +129,65 @@
     const playSection = $('#play-section');
     const playerResultsSection = $('#player-results-section');
 
-    const codeInputs = [0,1,2,3,4,5].map(i => $(`#ci${i}`));
+    const stepNickname = $('#step-nickname');
+    const stepCode = $('#step-code');
     const nicknameInput = $('#nickname-input');
-    const joinBtn = $('#join-btn');
+    const validateNicknameBtn = $('#validate-nickname-btn');
+    const backToNicknameBtn = $('#back-to-nickname');
+    const displayNickname = $('#display-nickname');
+    const codeInputs = [0,1,2,3,4,5].map(i => $(`#ci${i}`));
     const joinError = $('#join-error');
+
+    function showStep(step) {
+      if (step === 'nickname') { show(stepNickname); hide(stepCode); }
+      else { hide(stepNickname); show(stepCode); stepCode.classList.add('animate-in'); }
+    }
 
     function getRoomCode() {
       return codeInputs.map(ci => ci.value.trim().toUpperCase()).join('');
-    }
-
-    function isCodeComplete() {
-      return codeInputs.every(ci => ci.value.trim() !== '');
     }
 
     function allCodeFilled() {
       return codeInputs.every(ci => ci.value.trim() !== '');
     }
 
+    function maybeAutoJoin() {
+      if (allCodeFilled()) handleJoin();
+    }
+
     function clearCode() {
       codeInputs.forEach(ci => { ci.value = ''; ci.classList.remove('filled', 'error'); });
+    }
+
+    // --- Step 1: Nickname ---
+    nicknameInput.addEventListener('input', () => {
+      const val = nicknameInput.value.trim();
+      validateNicknameBtn.disabled = val.length === 0 || val.length > 30;
+    });
+
+    nicknameInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && nicknameInput.value.trim()) goToCodeStep();
+    });
+
+    validateNicknameBtn.addEventListener('click', () => {
+      if (nicknameInput.value.trim()) goToCodeStep();
+    });
+
+    function goToCodeStep() {
+      const nickname = nicknameInput.value.trim();
+      if (!nickname || nickname.length > 30) return;
+      displayNickname.textContent = nickname;
+      showStep('code');
+      clearCode();
       codeInputs[0].focus();
     }
 
-    function maybeAutoJoin() {
-      if (allCodeFilled() && nicknameInput.value.trim()) {
-        handleJoin();
-      }
-    }
+    // --- Step 2: Code ---
+    backToNicknameBtn.addEventListener('click', () => {
+      showStep('nickname');
+      clearCode();
+      nicknameInput.focus();
+    });
 
     codeInputs.forEach((ci, i) => {
       ci.addEventListener('input', () => {
@@ -191,9 +229,7 @@
           else codeInputs[j].classList.remove('filled');
         }
         const lastFilled = Math.min(5, pasted.length);
-        if (lastFilled >= 0) {
-          codeInputs[lastFilled].focus();
-        }
+        if (lastFilled >= 0) codeInputs[lastFilled].focus();
         hide(joinError);
         maybeAutoJoin();
       });
@@ -235,14 +271,11 @@
       const roomId = getRoomCode();
       const nickname = nicknameInput.value.trim();
 
-      if (roomId.length !== 6) { showCodeError(); showError('Veuillez entrer les 6 caractères du code.'); return; }
-      if (!nickname) { showError('Veuillez entrer un pseudo.'); return; }
-      if (nickname.length > 30) { showError('Le pseudo doit faire moins de 30 caractères.'); return; }
+      if (roomId.length !== 6) { showCodeError(); showError('Entre les 6 caractères du code.'); return; }
 
       hide(joinError);
-      codeInputs.forEach(c => c.classList.remove('error'));
-      joinBtn.disabled = true;
-      joinBtn.textContent = 'Connexion en cours...';
+      codeInputs.forEach(c => { c.classList.remove('error'); c.disabled = true; });
+      backToNicknameBtn.disabled = true;
 
       player = new PeerPlayer();
 
@@ -258,11 +291,12 @@
         showSection(waitingSection);
       } catch (e) {
         showCodeError();
-        showError('Impossible de rejoindre le salon. Vérifiez le code et votre connexion.');
+        showError('Impossible de rejoindre le salon. Vérifie le code et ta connexion.');
         player?.destroy();
         player = null;
-        joinBtn.disabled = false;
-        joinBtn.textContent = 'Rejoindre la partie';
+        codeInputs.forEach(c => c.disabled = false);
+        backToNicknameBtn.disabled = false;
+        codeInputs[0].focus();
       }
     }
 
@@ -287,8 +321,9 @@
       if (connectSection && !connectSection.classList.contains('hidden')) {
         showCodeError();
         showError('Erreur de connexion.');
-        joinBtn.disabled = false;
-        joinBtn.textContent = 'Rejoindre la partie';
+        codeInputs.forEach(c => c.disabled = false);
+        backToNicknameBtn.disabled = false;
+        codeInputs[0].focus();
       }
     }
 
