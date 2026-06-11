@@ -31,8 +31,15 @@
             <h2>Connexion</h2>
             <p>Demandez le code du salon à l'hôte de la partie.</p>
             <div class="form-group">
-              <label for="room-code-input">Code du salon</label>
-              <input type="text" id="room-code-input" class="input" placeholder="Ex : precept-bleu-42" autocomplete="off" autocapitalize="none">
+              <label>Code du salon</label>
+              <div class="code-input-group" id="code-input-group">
+                <input type="text" class="code-input" id="ci0" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+                <input type="text" class="code-input" id="ci1" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+                <input type="text" class="code-input" id="ci2" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+                <input type="text" class="code-input" id="ci3" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+                <input type="text" class="code-input" id="ci4" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+                <input type="text" class="code-input" id="ci5" maxlength="1" inputmode="text" autocomplete="off" autocapitalize="characters">
+              </div>
             </div>
             <div class="form-group">
               <label for="nickname-input">Votre pseudo</label>
@@ -116,10 +123,81 @@
     const playSection = $('#play-section');
     const playerResultsSection = $('#player-results-section');
 
-    const roomCodeInput = $('#room-code-input');
+    const codeInputs = [0,1,2,3,4,5].map(i => $(`#ci${i}`));
     const nicknameInput = $('#nickname-input');
     const joinBtn = $('#join-btn');
     const joinError = $('#join-error');
+
+    function getRoomCode() {
+      return codeInputs.map(ci => ci.value.trim().toUpperCase()).join('');
+    }
+
+    function isCodeComplete() {
+      return codeInputs.every(ci => ci.value.trim() !== '');
+    }
+
+    function allCodeFilled() {
+      return codeInputs.every(ci => ci.value.trim() !== '');
+    }
+
+    function clearCode() {
+      codeInputs.forEach(ci => { ci.value = ''; ci.classList.remove('filled', 'error'); });
+      codeInputs[0].focus();
+    }
+
+    function maybeAutoJoin() {
+      if (allCodeFilled() && nicknameInput.value.trim()) {
+        handleJoin();
+      }
+    }
+
+    codeInputs.forEach((ci, i) => {
+      ci.addEventListener('input', () => {
+        const val = ci.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        ci.value = val;
+        if (val) {
+          ci.classList.add('filled');
+          if (i < 5) codeInputs[i + 1].focus();
+        } else {
+          ci.classList.remove('filled');
+        }
+        codeInputs.forEach(c => c.classList.remove('error'));
+        hide(joinError);
+        maybeAutoJoin();
+      });
+
+      ci.addEventListener('keydown', e => {
+        if (e.key === 'Backspace' && !ci.value && i > 0) {
+          codeInputs[i - 1].value = '';
+          codeInputs[i - 1].classList.remove('filled');
+          codeInputs[i - 1].focus();
+        } else if (e.key === 'ArrowLeft' && i > 0) {
+          e.preventDefault();
+          codeInputs[i - 1].focus();
+          codeInputs[i - 1].select();
+        } else if (e.key === 'ArrowRight' && i < 5) {
+          e.preventDefault();
+          codeInputs[i + 1].focus();
+          codeInputs[i + 1].select();
+        }
+      });
+
+      ci.addEventListener('paste', e => {
+        e.preventDefault();
+        const pasted = (e.clipboardData.getData('text') || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 6);
+        for (let j = 0; j < 6; j++) {
+          codeInputs[j].value = pasted[j] || '';
+          if (pasted[j]) codeInputs[j].classList.add('filled');
+          else codeInputs[j].classList.remove('filled');
+        }
+        const lastFilled = Math.min(5, pasted.length);
+        if (lastFilled >= 0) {
+          codeInputs[lastFilled].focus();
+        }
+        hide(joinError);
+        maybeAutoJoin();
+      });
+    });
 
     const waitingQuizTitle = $('#waiting-quiz-title');
 
@@ -150,18 +228,19 @@
     }
 
     joinBtn.addEventListener('click', handleJoin);
-    roomCodeInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJoin(); });
     nicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleJoin(); });
+    nicknameInput.addEventListener('input', () => { maybeAutoJoin(); });
 
     async function handleJoin() {
-      const roomId = roomCodeInput.value.trim();
+      const roomId = getRoomCode();
       const nickname = nicknameInput.value.trim();
 
-      if (!roomId) { showError('Veuillez entrer le code du salon.'); return; }
+      if (roomId.length !== 6) { showCodeError(); showError('Veuillez entrer les 6 caractères du code.'); return; }
       if (!nickname) { showError('Veuillez entrer un pseudo.'); return; }
       if (nickname.length > 30) { showError('Le pseudo doit faire moins de 30 caractères.'); return; }
 
       hide(joinError);
+      codeInputs.forEach(c => c.classList.remove('error'));
       joinBtn.disabled = true;
       joinBtn.textContent = 'Connexion en cours...';
 
@@ -178,12 +257,18 @@
 
         showSection(waitingSection);
       } catch (e) {
-        showError('Impossible de rejoindre le salon. Vérifiez le code et votre connexion.\n' + e.message);
+        showCodeError();
+        showError('Impossible de rejoindre le salon. Vérifiez le code et votre connexion.');
         player?.destroy();
         player = null;
         joinBtn.disabled = false;
         joinBtn.textContent = 'Rejoindre la partie';
       }
+    }
+
+    function showCodeError() {
+      codeInputs.forEach(c => c.classList.add('error'));
+      setTimeout(() => codeInputs.forEach(c => c.classList.remove('error')), 600);
     }
 
     function showError(msg) {
@@ -200,6 +285,7 @@
     function onError(err) {
       console.error('Player error:', err);
       if (connectSection && !connectSection.classList.contains('hidden')) {
+        showCodeError();
         showError('Erreur de connexion.');
         joinBtn.disabled = false;
         joinBtn.textContent = 'Rejoindre la partie';

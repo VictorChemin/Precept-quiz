@@ -201,14 +201,12 @@ export class PeerPlayer {
   }
 }
 
-const COLORS = [
-  'bleu', 'rouge', 'vert', 'jaune', 'violet', 'orange', 'rose',
-  'marron', 'gris', 'noir', 'blanc', 'turquoise', 'corail', 'indigo',
-  'lilas', 'saumon', 'olive', 'menthe', 'lavande', 'abricot'
-];
+const CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export function generateRoomId() {
-  const color = COLORS[Math.floor(Math.random() * COLORS.length)];
-  const num = Math.floor(Math.random() * 90) + 10;
-  return `precept-${color}-${num}`;
+  let id = '';
+  for (let i = 0; i < 6; i++) {
+    id += CHARS[Math.floor(Math.random() * CHARS.length)];
+  }
+  return id;
 }

@@ -71,7 +71,10 @@
       <section id="room-section" class="hidden">
         <div class="room-code-display">
           <div class="label">Code du salon</div>
-          <div class="code" id="room-code-text">----</div>
+          <div class="code-display" id="room-code-display">
+            <span class="code-char">-</span><span class="code-char">-</span><span class="code-char">-</span>
+            <span class="code-char">-</span><span class="code-char">-</span><span class="code-char">-</span>
+          </div>
           <p style="font-size:.85rem;margin-top:.5rem">Communiquez ce code aux participants</p>
         </div>
         <div class="card">
@@ -260,7 +263,7 @@
     });
 
     // --- ROOM ---
-    const roomCodeText = $('#room-code-text');
+    const roomCodeDisplay = $('#room-code-display');
     const playerList = $('#player-list');
     const noPlayers = $('#no-players');
     const playerCountSpan = $('#player-count');
@@ -276,7 +279,9 @@
 
       try {
         await host.init();
-        roomCodeText.textContent = roomId;
+        roomCodeDisplay.querySelectorAll('.code-char').forEach((span, i) => {
+          span.textContent = roomId[i] || '-';
+        });
         host.onPlayerJoined = onPlayerJoined;
         host.onPlayerLeft = onPlayerLeft;
         host.onMessage = onHostMessage;
