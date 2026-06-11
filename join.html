@@ -335,6 +335,7 @@
           break;
         case MSG.GAME_START:
           isGameOver = false;
+          document.body.classList.add('game-active');
           waitingQuizTitle.textContent = data.totalQuestions + ' questions';
           playerScore = 0;
           playScoreDisplay.textContent = '0';
@@ -456,6 +457,7 @@
     function handleGameEnd(data) {
       clearInterval(timerInterval);
       isGameOver = true;
+      document.body.classList.remove('game-active');
       showSection(playerResultsSection);
 
       const leaderboard = data.scores.sort((a, b) => b.score - a.score);

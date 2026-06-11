@@ -379,6 +379,7 @@
       }));
 
       showSection(gameSection);
+      document.body.classList.add('game-active');
       gameState.currentQuestionIndex = 0;
       sendCurrentQuestion();
     }
@@ -555,6 +556,7 @@
 
     function endGame() {
       clearInterval(gameState.timerInterval);
+      document.body.classList.remove('game-active');
       showSection(resultsSection);
 
       const players = host.getPlayers();
