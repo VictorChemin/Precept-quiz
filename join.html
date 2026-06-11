@@ -103,7 +103,7 @@
           <div id="player-podium" class="podium"></div>
           <div id="player-scoreboard" class="scoreboard"></div>
           <div class="text-center mt-3">
-            <button id="player-new-game-btn" class="btn btn-outline">Rejoindre une autre partie</button>
+            <button id="player-new-game-btn" class="btn btn-outline" onclick="location.replace('join.html')">Rejoindre une autre partie</button>
           </div>
         </div>
       </section>
@@ -492,10 +492,13 @@
       `);
     }
 
-    $('#player-new-game-btn').addEventListener('click', () => {
-      if (player) { player.destroy(); player = null; }
-      window.location.href = 'join.html';
-    });
+    const newGameBtn = $('#player-new-game-btn');
+    if (newGameBtn) {
+      newGameBtn.addEventListener('click', () => {
+        try { if (player) { player.destroy(); player = null; } } catch (e) {}
+        location.replace('join.html');
+      });
+    }
 
     showSection(connectSection);
   </script>
